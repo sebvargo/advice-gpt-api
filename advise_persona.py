@@ -1,7 +1,5 @@
-from flask import Flask
+from app import app
 
-# import blueprints
-from 
 
 def foo(a, b):
     """

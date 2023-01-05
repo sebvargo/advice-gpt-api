@@ -10,4 +10,4 @@ To use Advice Persona first install go to:
 
 To add two numbers you can use the ``foo`` function:
 
-.. autofunction:: app.foo(a, b)
+.. autofunction:: advise_persona.foo(a, b)

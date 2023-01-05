@@ -128,7 +128,5 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# Excel files
-.xls
-.xlsx
-.xlsm
+# Work in progress folder
+./wip

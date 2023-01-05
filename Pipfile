@@ -1,0 +1,17 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+sphinx = "*"
+flask = "*"
+ipykernel = "*"
+requests = "*"
+furo = "*"
+connexion = {version = "==2.14.1", extras = ["swagger-ui"]}
+
+[dev-packages]
+
+[requires]
+python_version = "3.9"

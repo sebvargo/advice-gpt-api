@@ -1,0 +1,131 @@
+Folder PATH listing for volume OS
+Volume serial number is FAC2-C7CA
+C:.
+|   .env
+|   .gitignore
+|   advise_persona.py
+|   output.doc
+|   Pipfile
+|   Pipfile.lock
+|   README.md
+|   
++---.vscode
+|       settings.json
+|       
++---app
+|   |   __init__.py
+|   |   
+|   +---api
+|   |   |   routes.py
+|   |   |   __init__.py
+|   |   |   
+|   |   \---__pycache__
+|   |           routes.cpython-39.pyc
+|   |           __init__.cpython-39.pyc
+|   |           
+|   +---apidocs
+|   |       routes.py
+|   |       __init__.py
+|   |       
+|   +---templates
+|   |   +---api
+|   |   \---apidocs
+|   |           home.html
+|   |           
+|   \---__pycache__
+|           __init__.cpython-39.pyc
+|           
++---build
++---docs
+|   |   make.bat
+|   |   Makefile
+|   |   
+|   +---build
+|   |   +---doctest
+|   |   |       output.txt
+|   |   |       
+|   |   +---doctrees
+|   |   |   |   api.doctree
+|   |   |   |   environment.pickle
+|   |   |   |   functions.doctree
+|   |   |   |   index.doctree
+|   |   |   |   usage.doctree
+|   |   |   |   
+|   |   |   \---generated
+|   |   |           advise_persona.doctree
+|   |   |           app.doctree
+|   |   |           
+|   |   \---html
+|   |       |   .buildinfo
+|   |       |   api.html
+|   |       |   functions.html
+|   |       |   genindex.html
+|   |       |   index.html
+|   |       |   objects.inv
+|   |       |   py-modindex.html
+|   |       |   search.html
+|   |       |   searchindex.js
+|   |       |   usage.html
+|   |       |   
+|   |       +---.doctrees
+|   |       |       api.doctree
+|   |       |       index.doctree
+|   |       |       usage.doctree
+|   |       |       
+|   |       +---generated
+|   |       |       advise_persona.html
+|   |       |       
+|   |       +---_sources
+|   |       |   |   api.rst.txt
+|   |       |   |   functions.rst.txt
+|   |       |   |   index.rst.txt
+|   |       |   |   usage.rst.txt
+|   |       |   |   
+|   |       |   \---generated
+|   |       |           advise_persona.rst.txt
+|   |       |           app.rst.txt
+|   |       |           
+|   |       \---_static
+|   |           |   alabaster.css
+|   |           |   basic.css
+|   |           |   custom.css
+|   |           |   debug.css
+|   |           |   doctools.js
+|   |           |   documentation_options.js
+|   |           |   file.png
+|   |           |   language_data.js
+|   |           |   minus.png
+|   |           |   plus.png
+|   |           |   pygments.css
+|   |           |   searchtools.js
+|   |           |   skeleton.css
+|   |           |   sphinx_highlight.js
+|   |           |   
+|   |           +---scripts
+|   |           |       furo-extensions.js
+|   |           |       furo.js
+|   |           |       furo.js.LICENSE.txt
+|   |           |       furo.js.map
+|   |           |       
+|   |           \---styles
+|   |                   furo-extensions.css
+|   |                   furo-extensions.css.map
+|   |                   furo.css
+|   |                   furo.css.map
+|   |                   
+|   \---source
+|       |   conf.py
+|       |   functions.rst
+|       |   index.rst
+|       |   usage.rst
+|       |   
+|       +---generated
+|       +---_static
+|       \---_templates
++---wip
+|       Notes.xlsx
+|       
+\---__pycache__
+        advise_persona.cpython-39.pyc
+        app.cpython-39.pyc
+        

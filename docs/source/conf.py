@@ -24,9 +24,8 @@ release = '2023'
 
 extensions = [
     'sphinx.ext.duration',
-    'sphinx.ext.doctest',
     'sphinx.ext.autodoc',
-    'sphinx.ext.autosummary',
+    'sphinxcontrib.httpdomain',
 ]
 
 autosummary_generate = True

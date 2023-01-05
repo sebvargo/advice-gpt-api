@@ -18,5 +18,6 @@ Contents
    :maxdepth: 3
    
    usage
-   api
+   functions
+   
    

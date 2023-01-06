@@ -8,6 +8,7 @@ flask = "*"
 sphinx = "*"
 flask-restx = "*"
 python-dotenv = "*"
+ipykernel = "*"
 
 [dev-packages]
 

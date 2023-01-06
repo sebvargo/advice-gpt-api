@@ -1,5 +1,7 @@
-from app.api import bp as bp_api
+from app.api import API as api
+from flask_restx import Resource
 
-@bp_api.route('/')
-def index():
-    return "hello  this is the api"
+@api.route('/hi')
+class HelloWorld(Resource):
+    def get(self):
+        return {'hello': 'world'}

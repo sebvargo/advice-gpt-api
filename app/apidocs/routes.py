@@ -1,4 +1,4 @@
-from app.apidocs import bp as bp_apidocs
+from app.apidocs import BP as bp_apidocs
 
 @bp_apidocs.route('/')
 def index():

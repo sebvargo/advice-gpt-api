@@ -5,14 +5,9 @@ name = "pypi"
 
 [packages]
 flask = "*"
-ipykernel = "*"
-requests = "*"
-furo = "*"
-connexion = {version = "==2.14.1", extras = ["swagger-ui"]}
-python-dotenv = "*"
-sphinxcontrib-httpdomain = "*"
 sphinx = "*"
-"sphinxcontrib.httpdomain" = "*"
+flask-restx = "*"
+python-dotenv = "*"
 
 [dev-packages]
 

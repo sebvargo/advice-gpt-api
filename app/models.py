@@ -20,5 +20,27 @@ class User(db.Model):
         """Check if user input matches user hashed password"""
         return check_password_hash(self.password_hash, password)
     
+    def to_dict(self, include_emails=True) -> dict:
+        '''
+        Returns User attributes as a Python Dictionary.
+    
+        :self: User object
+        :type self: User
+        :include_emails: if true, email data will be included in the dictionary
+        :type include_emails: bool
+        :return: User attributes as dictionary.
+        :rtype: dict
+        '''
+    
+        data = {
+            'user_id'  : self.user_id,
+            'username' : self.username,
+        }
+        
+        if include_emails:
+            data['email'] = self.email
+        
+        return data
+    
 
     

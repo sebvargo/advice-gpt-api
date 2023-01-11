@@ -8,7 +8,7 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 
 class Config():
     APP_ENVIRONMENT = os.getenv("APP_ENVIRONMENT") 
-    SECRET_KEY = os.environ.get('SECRET_KEY') or 'Something Random'
+    SECRET_KEY = os.environ.get('SECRET_KEY')
     SESSION_PERMANENT = False
     SESSION_TYPE = 'filesystem'
     SQLALCHEMY_TRACK_MODIFICATIONS = False

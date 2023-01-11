@@ -7,3 +7,6 @@ API = Api(BP, doc='/docs/')
 
 from app.api.users import NS as ns_users
 API.add_namespace(ns_users)
+
+from app.api.auth import NS as ns_auth
+API.add_namespace(ns_auth)

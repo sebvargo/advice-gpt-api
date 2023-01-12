@@ -165,7 +165,7 @@ class SingleUser(Resource):
     @NS.marshal_with(user_model)
     def get(self, user_id):
         """Get user by id"""
-        user = User.query.get(int(user_id))
+        user = db.session.get(User, int(user_id))
         if user:
             return user.to_dict(include_emails=False)
         else:
@@ -202,7 +202,7 @@ class SingleUser(Resource):
                 added_to_db, msg = commit_to_db(db)
 
                 if added_to_db:
-                    g.user = User.query.get(current_user.user_id)
+                    g.user = db.session.get(User, current_user.user_id)
                     return current_user.to_dict(include_emails=True), 200
                 else:
                     abort(500, f"Server Error: {msg}")

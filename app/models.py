@@ -6,11 +6,14 @@ from itsdangerous import BadSignature, SignatureExpired
 
 
 class User(db.Model):
-    __tablename__ = "users"
+    __tablename__ = "user"
     user_id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(64), index=True, unique=True)
     email = db.Column(db.String(120), index=True, unique=True)
     password_hash = db.Column(db.String(128))
+    children = db.relationship("Child", back_populates="user", cascade="all, delete, delete-orphan")
+
+
 
     def __repr__(self) -> str:
         return f"<User {self.user_id}: {self.username}>"
@@ -60,7 +63,7 @@ class User(db.Model):
         except BadSignature:
             return None  # invalid token
 
-        user = User.query.get(data["id"])
+        user = db.session.get(User, data["id"])
         return user
 
     def to_dict(self, include_emails=True) -> dict:
@@ -84,3 +87,12 @@ class User(db.Model):
             data["email"] = self.email
 
         return data
+
+# Example Usage
+class Child(db.Model):
+    __tablename__ = "child"
+    id = db.Column(db.Integer, primary_key=True) 
+    user_id = db.Column(db.Integer, db.ForeignKey("user.user_id", ondelete = "CASCADE"))
+    user = db.relationship("User", back_populates="children")
+ 
+

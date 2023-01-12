@@ -1,4 +1,4 @@
-from flask import g, request
+from flask import g
 from flask_restx import Namespace, Resource, fields
 from flask_restx.errors import abort
 from flask_httpauth import HTTPBasicAuth
@@ -65,7 +65,8 @@ def auth_error(status) -> int:
     :raises: HTTPException
     """
 
-    abort(status, "Authentication Error")
+    abort(status, "Authentication Error. Please check your credentials and try again.")
+
 
 
 token_model = NS.model(

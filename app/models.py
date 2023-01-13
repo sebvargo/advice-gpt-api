@@ -3,7 +3,30 @@ from app import db
 from werkzeug.security import generate_password_hash, check_password_hash
 from itsdangerous import URLSafeTimedSerializer
 from itsdangerous import BadSignature, SignatureExpired
+import datetime as dt
+from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy import func
 
+
+class UserRole(db.Model):
+    __tablename__ = 'user_role'
+    user_role_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.user_id", ondelete = "CASCADE"), primary_key=True)
+    role_id = db.Column(db.Integer, db.ForeignKey("role.role_id"))
+    created_on = db.Column(db.DateTime(timezone=True), default=dt.datetime.now(tz=dt.timezone.utc))
+    
+    user = db.relationship("User", back_populates="role_association", cascade_backrefs = False)
+    role = db.relationship("Role", back_populates = "user_association", cascade_backrefs = False)
+
+class Role(db.Model):
+    __tablename__ = 'role'
+    role_id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(64), nullable=False, unique=True)
+    description = db.Column(db.String(255))
+    created_on = db.Column(db.DateTime(timezone=True), default=dt.datetime.now(tz=dt.timezone.utc))
+    user_association = db.relationship('UserRole', back_populates='role', cascade_backrefs=False)
+    users = association_proxy('user_association', 'user')
+    
 
 class User(db.Model):
     __tablename__ = "user"
@@ -11,9 +34,17 @@ class User(db.Model):
     username = db.Column(db.String(64), index=True, unique=True)
     email = db.Column(db.String(120), index=True, unique=True)
     password_hash = db.Column(db.String(128))
-    children = db.relationship("Child", back_populates="user", cascade="all, delete, delete-orphan")
+    created_on = db.Column(db.DateTime(timezone=True), default=dt.datetime.now(tz=dt.timezone.utc))
+    
+    role_association = db.relationship("UserRole", back_populates="user", cascade="all, delete, delete-orphan", cascade_backrefs = False)
+    roles = association_proxy("role_association", "role")
 
-
+    # children = db.relationship("Child", back_populates="user", cascade="all, delete, delete-orphan")
+    def __init__(self, username, password, email):
+        self.username = username
+        self.email = email
+        self.created_on = dt.datetime.now(tz=dt.timezone.utc)
+        self.hash_password(password)
 
     def __repr__(self) -> str:
         return f"<User {self.user_id}: {self.username}>"
@@ -40,7 +71,7 @@ class User(db.Model):
 
         s = URLSafeTimedSerializer(current_app.config["SECRET_KEY"])
         token = s.dumps({"id": self.user_id})
-        
+
         return token
 
     @staticmethod
@@ -53,7 +84,7 @@ class User(db.Model):
         :return: User
         :rtype: User Object
         """
-        
+
         s = URLSafeTimedSerializer(current_app.config["SECRET_KEY"])
         try:
             data = s.loads(token, max_age=600)
@@ -88,11 +119,10 @@ class User(db.Model):
 
         return data
 
-# Example Usage
-class Child(db.Model):
-    __tablename__ = "child"
-    id = db.Column(db.Integer, primary_key=True) 
-    user_id = db.Column(db.Integer, db.ForeignKey("user.user_id", ondelete = "CASCADE"))
-    user = db.relationship("User", back_populates="children")
- 
 
+# Example Usage
+# class Child(db.Model):
+#     __tablename__ = "child"
+#     id = db.Column(db.Integer, primary_key=True)
+#     user_id = db.Column(db.Integer, db.ForeignKey("user.user_id", ondelete = "CASCADE"))
+#     user = db.relationship("User", back_populates="children")

@@ -134,8 +134,7 @@ class Users(Resource):
             username = args["username"]
             password = args["password"]
             email = args["email"]
-            user = User(username=username, email=email)
-            user.hash_password(password)
+            user = User(username=username, email=email, password = password)
             db.session.add(user)
             committed_to_db, msg = commit_to_db(db)
             if committed_to_db:

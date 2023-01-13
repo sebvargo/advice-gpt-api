@@ -29,7 +29,7 @@ class User(db.Model):
     entities_commented = association_proxy("comments", "entity")
     
     comment_likes = db.relationship("EntityCommentLike", back_populates="user", cascade_backrefs=False)
-
+    tags = db.relationship("EntityTag", back_populates="user", cascade="all, delete, delete-orphan", cascade_backrefs=False)
 
     # children = db.relationship("Child", back_populates="user", cascade="all, delete, delete-orphan")
     def __init__(self, username, password, email):
@@ -152,8 +152,8 @@ class Entity(db.Model):
     likes = db.relationship("EntityLike", back_populates="entity", cascade_backrefs=False)
     liked_by = association_proxy("likes", "user")
     
-    seen = db.relationship("EntityView", back_populates="entity", cascade_backrefs=False)
-    seen_by = association_proxy("seen", "user")
+    views = db.relationship("EntityView", back_populates="entity", cascade_backrefs=False)
+    viewed_by = association_proxy("views", "user")
     
     comments = db.relationship("EntityComment", back_populates="entity", cascade_backrefs=False)
     comments_by = association_proxy("comments", "user")
@@ -189,8 +189,8 @@ class Tag(db.Model):
     name = db.Column(db.String(64), nullable=False, unique=True)
     description = db.Column(db.String(255))
     created_on = db.Column(db.DateTime(timezone=True), default=dt.datetime.now(tz=dt.timezone.utc))
-    
-    tags = db.relationship("EntityTag",back_populates="user",cascade="all, delete, delete-orphan",cascade_backrefs=False,)
+        
+    tags = db.relationship("EntityTag",back_populates="tag",cascade="all, delete, delete-orphan",cascade_backrefs=False,)
     entities_tagged = association_proxy("tags", "entity")
     
 class EntityTag(db.Model):
@@ -201,7 +201,8 @@ class EntityTag(db.Model):
     created_on = db.Column(db.DateTime(timezone=True), default=dt.datetime.now(tz=dt.timezone.utc))
     
     tag =db.relationship("Tag", back_populates="tags", cascade_backrefs=False)
-    entity = db.relationship("Entity", back_populates="tag", cascade_backrefs=False)  
+    entity = db.relationship("Entity", back_populates="tags", cascade_backrefs=False)  
+    user = db.relationship("User", back_populates="tags", cascade_backrefs=False)
 
 class EntityView(db.Model):
     __tablename__ = "entity_view"
@@ -209,8 +210,8 @@ class EntityView(db.Model):
     entity_id = db.Column(db.Integer,db.ForeignKey("entity.entity_id", ondelete="CASCADE"),primary_key=True)
     created_on = db.Column(db.DateTime(timezone=True), default=dt.datetime.now(tz=dt.timezone.utc))
 
-    user = db.relationship("User", back_populates="seen", cascade_backrefs=False)
-    entity = db.relationship("Entity", back_populates="seen", cascade_backrefs=False)  
+    user = db.relationship("User", back_populates="views", cascade_backrefs=False)
+    entity = db.relationship("Entity", back_populates="views", cascade_backrefs=False)  
 
 class EntityLike(db.Model):
     __tablename__ = "entity_like"

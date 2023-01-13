@@ -8,36 +8,28 @@ from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy import func
 
 
-class UserRole(db.Model):
-    __tablename__ = 'user_role'
-    user_role_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.user_id", ondelete = "CASCADE"), primary_key=True)
-    role_id = db.Column(db.Integer, db.ForeignKey("role.role_id"))
-    created_on = db.Column(db.DateTime(timezone=True), default=dt.datetime.now(tz=dt.timezone.utc))
-    
-    user = db.relationship("User", back_populates="role_association", cascade_backrefs = False)
-    role = db.relationship("Role", back_populates = "user_association", cascade_backrefs = False)
-
-class Role(db.Model):
-    __tablename__ = 'role'
-    role_id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(64), nullable=False, unique=True)
-    description = db.Column(db.String(255))
-    created_on = db.Column(db.DateTime(timezone=True), default=dt.datetime.now(tz=dt.timezone.utc))
-    user_association = db.relationship('UserRole', back_populates='role', cascade_backrefs=False)
-    users = association_proxy('user_association', 'user')
-    
-
 class User(db.Model):
     __tablename__ = "user"
     user_id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(64), index=True, unique=True)
-    email = db.Column(db.String(120), index=True, unique=True)
-    password_hash = db.Column(db.String(128))
+    username = db.Column(db.String(64), index=True, unique=True, nullable=False)
+    email = db.Column(db.String(120), index=True, unique=True, nullable=False)
+    password_hash = db.Column(db.String(128), nullable=False)
     created_on = db.Column(db.DateTime(timezone=True), default=dt.datetime.now(tz=dt.timezone.utc))
-    
-    role_association = db.relationship("UserRole", back_populates="user", cascade="all, delete, delete-orphan", cascade_backrefs = False)
+
+    role_association = db.relationship("UserRole",back_populates="user",cascade="all, delete, delete-orphan",cascade_backrefs=False,)
     roles = association_proxy("role_association", "role")
+
+    likes = db.relationship("EntityLike",back_populates="user",cascade="all, delete, delete-orphan",cascade_backrefs=False,)
+    entities_liked = association_proxy("likes", "entity")
+    
+    views = db.relationship("EntityView",back_populates="user",cascade="all, delete, delete-orphan",cascade_backrefs=False,)
+    entities_viewed = association_proxy("views", "entity")
+    
+    comments = db.relationship("EntityComment", back_populates="user", cascade_backrefs=False)
+    entities_commented = association_proxy("comments", "entity")
+    
+    comment_likes = db.relationship("EntityCommentLike", back_populates="user", cascade_backrefs=False)
+
 
     # children = db.relationship("Child", back_populates="user", cascade="all, delete, delete-orphan")
     def __init__(self, username, password, email):
@@ -45,6 +37,16 @@ class User(db.Model):
         self.email = email
         self.created_on = dt.datetime.now(tz=dt.timezone.utc)
         self.hash_password(password)
+
+    def assign_role(self, role_name):
+        """Assigns role to user based on role name"""
+        valid_role = Role.query.filter_by(name=role_name).first()
+        if valid_role:
+            user_role = UserRole(user=self, role=valid_role)
+            db.session.add(user_role)
+            return True
+        else: return False
+
 
     def __repr__(self) -> str:
         return f"<User {self.user_id}: {self.username}>"
@@ -112,7 +114,7 @@ class User(db.Model):
         data = {
             "user_id": self.user_id,
             "username": self.username,
-        }
+            }
 
         if include_emails:
             data["email"] = self.email
@@ -120,9 +122,132 @@ class User(db.Model):
         return data
 
 
-# Example Usage
-# class Child(db.Model):
-#     __tablename__ = "child"
-#     id = db.Column(db.Integer, primary_key=True)
-#     user_id = db.Column(db.Integer, db.ForeignKey("user.user_id", ondelete = "CASCADE"))
-#     user = db.relationship("User", back_populates="children")
+class UserRole(db.Model):
+    __tablename__ = "user_role"
+    user_id = db.Column(db.Integer, db.ForeignKey("user.user_id", ondelete="CASCADE"), primary_key=True)
+    role_id = db.Column(db.Integer, db.ForeignKey("role.role_id"), primary_key=True)
+    created_on = db.Column(db.DateTime(timezone=True), default=dt.datetime.now(tz=dt.timezone.utc))
+
+    user = db.relationship("User", back_populates="role_association", cascade_backrefs=False)
+    role = db.relationship("Role", back_populates="user_association", cascade_backrefs=False)
+
+
+class Role(db.Model):
+    __tablename__ = "role"
+    role_id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(64), nullable=False, unique=True)
+    description = db.Column(db.String(255))
+    created_on = db.Column(db.DateTime(timezone=True), default=dt.datetime.now(tz=dt.timezone.utc))
+    user_association = db.relationship("UserRole", back_populates="role", cascade_backrefs=False)
+    users = association_proxy("user_association", "user")
+
+
+class Entity(db.Model):
+    __tablename__ = "entity"
+    entity_id = db.Column(db.Integer, primary_key=True)
+    type = db.Column(db.String(64), nullable=False)
+
+    created_on = db.Column(db.DateTime(timezone=True), default=dt.datetime.now(tz=dt.timezone.utc))
+
+    likes = db.relationship("EntityLike", back_populates="entity", cascade_backrefs=False)
+    liked_by = association_proxy("likes", "user")
+    
+    seen = db.relationship("EntityView", back_populates="entity", cascade_backrefs=False)
+    seen_by = association_proxy("seen", "user")
+    
+    comments = db.relationship("EntityComment", back_populates="entity", cascade_backrefs=False)
+    comments_by = association_proxy("comments", "user")
+    
+    tags = db.relationship("EntityTag", back_populates="entity", cascade="all, delete, delete-orphan", cascade_backrefs=False)
+    tag_names = association_proxy("tags", "tag")
+    
+    advice = db.relationship("Advice", back_populates="entity", cascade="all, delete, delete-orphan", cascade_backrefs=False)
+
+class Advice(db.Model):
+    __tablename__ = "advice"
+    entity_id = db.Column(db.Integer, db.ForeignKey('entity.entity_id', ondelete="CASCADE"), primary_key=True)
+    persona_id = db.Column(db.Integer,  db.ForeignKey('persona.persona_id'))
+    content = db.Column(db.Text, nullable=False)
+    adviceslip_id = db.Column(db.Integer)
+    created_on = db.Column(db.DateTime(timezone=True), default=dt.datetime.now(tz=dt.timezone.utc))
+    
+    entity = db.relationship("Entity", back_populates="advice", cascade_backrefs=False)
+    persona = db.relationship("Persona", back_populates="advice", cascade_backrefs=False)
+    
+class Persona(db.Model):
+    __tablename__="persona"
+    persona_id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False, unique=True)
+    created_on = db.Column(db.DateTime(timezone=True), default=dt.datetime.now(tz=dt.timezone.utc))
+    
+    advice = db.relationship("Advice", back_populates="persona", cascade_backrefs=False)
+    
+
+class Tag(db.Model):
+    __tablename__ = "tag"
+    tag_id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(64), nullable=False, unique=True)
+    description = db.Column(db.String(255))
+    created_on = db.Column(db.DateTime(timezone=True), default=dt.datetime.now(tz=dt.timezone.utc))
+    
+    tags = db.relationship("EntityTag",back_populates="user",cascade="all, delete, delete-orphan",cascade_backrefs=False,)
+    entities_tagged = association_proxy("tags", "entity")
+    
+class EntityTag(db.Model):
+    __tablename__ = "entity_tag"
+    tag_id = db.Column(db.Integer, db.ForeignKey('tag.tag_id', ondelete="CASCADE"), primary_key=True)
+    entity_id = db.Column(db.Integer, db.ForeignKey('entity.entity_id', ondelete="CASCADE"), primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.user_id"))
+    created_on = db.Column(db.DateTime(timezone=True), default=dt.datetime.now(tz=dt.timezone.utc))
+    
+    tag =db.relationship("Tag", back_populates="tags", cascade_backrefs=False)
+    entity = db.relationship("Entity", back_populates="tag", cascade_backrefs=False)  
+
+class EntityView(db.Model):
+    __tablename__ = "entity_view"
+    user_id = db.Column(db.Integer, db.ForeignKey("user.user_id", ondelete="CASCADE"), primary_key=True)
+    entity_id = db.Column(db.Integer,db.ForeignKey("entity.entity_id", ondelete="CASCADE"),primary_key=True)
+    created_on = db.Column(db.DateTime(timezone=True), default=dt.datetime.now(tz=dt.timezone.utc))
+
+    user = db.relationship("User", back_populates="seen", cascade_backrefs=False)
+    entity = db.relationship("Entity", back_populates="seen", cascade_backrefs=False)  
+
+class EntityLike(db.Model):
+    __tablename__ = "entity_like"
+    user_id = db.Column(db.Integer, db.ForeignKey("user.user_id", ondelete="CASCADE"), primary_key=True)
+    entity_id = db.Column(db.Integer,db.ForeignKey("entity.entity_id", ondelete="CASCADE"),primary_key=True)
+    created_on = db.Column(db.DateTime(timezone=True), default=dt.datetime.now(tz=dt.timezone.utc))
+
+    user = db.relationship("User", back_populates="likes", cascade_backrefs=False)
+    entity = db.relationship("Entity", back_populates="likes", cascade_backrefs=False)
+    
+class EntityComment(db.Model):
+    __tablename__ = "entity_comment"
+    comment_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    entity_id = db.Column(db.Integer,db.ForeignKey("entity.entity_id", ondelete="CASCADE"),primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.user_id"))
+    content = db.Column(db.Text, nullable=False, index=True)
+    likes = db.Column(db.Integer, default=0)
+    created_on = db.Column(db.DateTime(timezone=True), default=dt.datetime.now(tz=dt.timezone.utc))
+
+    
+    user = db.relationship("User", back_populates="comments", cascade_backrefs=False)
+    entity = db.relationship("Entity", back_populates="comments", cascade_backrefs=False)
+    comment_likes = db.relationship("EntityCommentLike", back_populates="comment", cascade_backrefs=False)
+
+class EntityCommentLike(db.Model):
+    __tablename__ = "entity_comment_like"
+    user_id = db.Column(db.Integer, db.ForeignKey("user.user_id", ondelete="CASCADE"), primary_key=True)
+    comment_id = db.Column(db.Integer, primary_key=True)
+    entity_id = db.Column(db.Integer, primary_key=True)
+    created_on = db.Column(db.DateTime(timezone=True), default=dt.datetime.now(tz=dt.timezone.utc))
+    __table_args__ = (
+        db.ForeignKeyConstraint(
+            ['comment_id', 'entity_id'],
+            ['entity_comment.comment_id', 'entity_comment.entity_id']
+            ),)
+        
+    
+    user = db.relationship("User", back_populates="comment_likes", cascade_backrefs=False)
+    comment = db.relationship("EntityComment", back_populates="comment_likes", cascade_backrefs=False)
+

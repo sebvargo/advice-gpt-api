@@ -84,9 +84,10 @@ def commit_to_db(db) -> tuple:
         db.session.commit()
         return True, "success"
 
-    except Exception:
+    except Exception as e:
+        print(str(e))
         db.session.rollback()
-        return False, Exception
+        return False, e
 
 
 def create_flaskrestx_parser(

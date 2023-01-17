@@ -149,7 +149,7 @@ class Entity(db.Model):
 
     created_on = db.Column(db.DateTime(timezone=True), default=dt.datetime.now(tz=dt.timezone.utc))
 
-    likes = db.relationship("EntityLike", back_populates="entity", cascade_backrefs=False)
+    entity_likes = db.relationship("EntityLike", back_populates="entity", cascade_backrefs=False)
     liked_by = association_proxy("likes", "user")
     
     views = db.relationship("EntityView", back_populates="entity", cascade_backrefs=False)
@@ -162,6 +162,19 @@ class Entity(db.Model):
     tag_names = association_proxy("tags", "tag")
     
     advice = db.relationship("Advice", back_populates="entity", cascade="all, delete, delete-orphan", cascade_backrefs=False)
+    
+    def likes(self) -> int:
+        '''
+        Gets number of likes of this comment.
+    
+        :param self: Current EntityComment object
+        :type self: EntityComment
+        :return: number of likes
+        :rtype: int 
+        '''
+    
+        likes = len(self.entity_likes)
+        return likes
 
 class Advice(db.Model):
     __tablename__ = "advice"
@@ -187,7 +200,7 @@ class Tag(db.Model):
     __tablename__ = "tag"
     tag_id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(64), nullable=False, unique=True)
-    description = db.Column(db.String(255))
+    description = db.Column(db.Text)
     created_on = db.Column(db.DateTime(timezone=True), default=dt.datetime.now(tz=dt.timezone.utc))
         
     tags = db.relationship("EntityTag",back_populates="tag",cascade="all, delete, delete-orphan",cascade_backrefs=False,)
@@ -220,7 +233,7 @@ class EntityLike(db.Model):
     created_on = db.Column(db.DateTime(timezone=True), default=dt.datetime.now(tz=dt.timezone.utc))
 
     user = db.relationship("User", back_populates="likes", cascade_backrefs=False)
-    entity = db.relationship("Entity", back_populates="likes", cascade_backrefs=False)
+    entity = db.relationship("Entity", back_populates="entity_likes", cascade_backrefs=False)
     
 class EntityComment(db.Model):
     __tablename__ = "entity_comment"
@@ -228,13 +241,26 @@ class EntityComment(db.Model):
     entity_id = db.Column(db.Integer,db.ForeignKey("entity.entity_id", ondelete="CASCADE"),primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.user_id"))
     content = db.Column(db.Text, nullable=False, index=True)
-    likes = db.Column(db.Integer, default=0)
     created_on = db.Column(db.DateTime(timezone=True), default=dt.datetime.now(tz=dt.timezone.utc))
 
     
     user = db.relationship("User", back_populates="comments", cascade_backrefs=False)
     entity = db.relationship("Entity", back_populates="comments", cascade_backrefs=False)
     comment_likes = db.relationship("EntityCommentLike", back_populates="comment", cascade_backrefs=False)
+    
+    
+    def likes(self) -> int:
+        '''
+        Gets number of likes of this comment.
+    
+        :param self: Current EntityComment object
+        :type self: EntityComment
+        :return: number of likes
+        :rtype: int 
+        '''
+    
+        likes = len(self.comment_likes)
+        return likes
 
 class EntityCommentLike(db.Model):
     __tablename__ = "entity_comment_like"
@@ -251,4 +277,3 @@ class EntityCommentLike(db.Model):
     
     user = db.relationship("User", back_populates="comment_likes", cascade_backrefs=False)
     comment = db.relationship("EntityComment", back_populates="comment_likes", cascade_backrefs=False)
-

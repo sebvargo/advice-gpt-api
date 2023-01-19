@@ -187,6 +187,27 @@ class Advice(db.Model):
     entity = db.relationship("Entity", back_populates="advice", cascade_backrefs=False)
     persona = db.relationship("Persona", back_populates="advice", cascade_backrefs=False)
     
+    def to_dict(self) -> dict:
+        """
+        Returns Advice attributes as a Python Dictionary.
+
+        :param self: Advice object
+        :type self: Advice
+        :return: Advice attributes as dictionary.
+        :rtype: dict
+        """
+
+        data = {
+            "entity_id": self.entity_id,
+            "persona": self.persona.name,
+            "content": self.content,
+            "created_on": self.created_on,
+            "adviceslip_id": self.adviceslip_id,
+            "created_on": self.created_on,
+            }
+
+        return data
+    
 class Persona(db.Model):
     __tablename__="persona"
     persona_id = db.Column(db.Integer, primary_key=True)
@@ -194,6 +215,23 @@ class Persona(db.Model):
     created_on = db.Column(db.DateTime(timezone=True), default=dt.datetime.now(tz=dt.timezone.utc))
     
     advice = db.relationship("Advice", back_populates="persona", cascade_backrefs=False)
+    
+    def to_dict(self) -> dict:
+        """
+        Returns Persona attributes as a Python Dictionary.
+
+        :param self: Persona object
+        :type self: Persona
+        :return: Persona attributes as dictionary.
+        :rtype: dict
+        """
+
+        data = {
+            "persona_id": self.persona_id,
+            "name": self.name,
+            }
+
+        return data
     
 
 class Tag(db.Model):

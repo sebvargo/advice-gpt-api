@@ -1,8 +1,9 @@
 import flask_restx
 from app.models import User
+import datetime as dt
 
 
-def user_attr_unique_notempty_check(attributes_to_check, user_to_update = None) -> tuple:
+def user_attr_unique_notempty_check(attributes_to_check, user_to_update=None) -> tuple:
     """
     description
 
@@ -13,60 +14,64 @@ def user_attr_unique_notempty_check(attributes_to_check, user_to_update = None) 
     :return: tuple with status, status code and a message. If there is an error, the tuple will be (False, msg)
     :rtype: tuple
     """
-    
+
     status = True
-    status_code = 200  
+    status_code = 200
     msg = []
-    
+
     if user_to_update:
         username_to_update = user_to_update.username
         email_to_update = user_to_update.email
     else:
         username_to_update = None
         email_to_update = None
-    
+
     empty_checks = [None, ""]
-    
+
     if "username" in attributes_to_check.keys():
         new_username = attributes_to_check["username"]
         if new_username in empty_checks:
             msg.append("ERROR: Username attribute provided but is empty")
-            status = False 
+            status = False
             status_code = 409
-        elif User.query.filter(User.username == new_username, User.username != username_to_update).first():
+        elif User.query.filter(
+            User.username == new_username, User.username != username_to_update
+        ).first():
             msg.append("CONFLICT: Username already exists")
-            status = False 
+            status = False
             status_code = 409
         else:
             msg.append("Username is valid for update/create")
     else:
         pass
-    
+
     if "password" in attributes_to_check.keys():
         new_password = attributes_to_check["password"]
         if new_password in empty_checks:
             msg.append("ERROR: Password attribute provided but is empty")
-            status = False 
+            status = False
             status_code = 409
         else:
             msg.append("Password is valid for update/create")
-            
+
     if "email" in attributes_to_check.keys():
         new_email = attributes_to_check["email"]
         if new_email in empty_checks:
             msg.append("ERROR: Email attribute provided but is empty")
-            status = False 
+            status = False
             status_code = 409
-        elif User.query.filter(User.email == new_email, User.email!= email_to_update).first():
+        elif User.query.filter(
+            User.email == new_email, User.email != email_to_update
+        ).first():
             msg.append("CONFLICT: Email already exists")
-            status = False 
+            status = False
             status_code = 409
         else:
             msg.append("Email is valid for update/create")
     else:
         pass
-    
-    #If all checks pass, return success
+
+    # If all checks pass, return success
     return status, status_code, msg
 
 
@@ -120,3 +125,22 @@ def create_flaskrestx_parser(
             parser.add_argument(param)
 
     return parser
+
+
+def validate_date_format(str_date) -> bool:
+    """
+    Checks if a str date is in the correct format.
+    Expects format as yyyy-mm-dd == %Y-%m-%d
+
+    :param date: date as string
+    :type date: str
+    :return: True if valid, False otherwise
+    :rtype: bool
+    """
+
+    try:
+        if str_date != dt.datetime.strptime(str_date, "%Y-%m-%d").strftime("%Y-%m-%d"):
+            raise ValueError
+        return True
+    except ValueError:
+        return False

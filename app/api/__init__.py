@@ -10,3 +10,6 @@ API.add_namespace(ns_users)
 
 from app.api.auth import NS as ns_auth
 API.add_namespace(ns_auth)
+
+from app.api.advice import NS as ns_advice
+API.add_namespace(ns_advice)

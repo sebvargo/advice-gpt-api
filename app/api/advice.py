@@ -12,18 +12,53 @@ import datetime as dt
 NS = Namespace("advice", description="Advice related operations")
 OPENAI_MODEL = os.getenv("OPENAI_FINETUNED_MODEL")
 
+advice_model = NS.model(
+    "Advice", 
+    {
+            "entity_id": fields.Integer(description="Entity Id", example=1),
+            "persona": fields.String(description="Persona that gave advice", example="Unknown"),
+            "content": fields.String(description="Advice Text", example="Write good endpoints"),
+            "created_on": fields.DateTime(),
+            "adviceslip_id": fields.Integer(),
+    } 
+)
 
-@NS.route("/<string:yyyy_mm_dd>")
+advice_collection_model = NS.model(
+    "AdviceCollection",
+    {
+        "items": fields.List(fields.Nested(advice_model, skip_none=True)),
+        "_meta": fields.Nested(
+            {
+                "page": fields.Integer(),
+                "per_page": fields.Integer(),
+                "total_pages": fields.Integer(),
+                "total_items": fields.Integer(),
+            }
+        ),
+        "_links": fields.Nested(
+            {
+                "self": fields.String(),
+                "next": fields.String(),
+                "prev": fields.String(),
+            }
+        ),
+    },
+)
+
+
+@NS.route("/<string:date>")
 @NS.response(400, "Invalid Request.")
 @NS.response(401, "Unauthorized.")
 class AdviceDate(Resource):
     @NS.response(200, "Succesful request.")
-    def get(self, yyyy_mm_dd):
+    @NS.marshal_with(advice_collection_model, as_list=True, skip_none=True, code=200)
+    @NS.doc(params={"date": "Date of interest. Required format: YYYY-MM-DD"})
+    def get(self, date):
         """Get all advice from a specific date."""
-
-        if not validate_date_format(yyyy_mm_dd):
+        
+        if not validate_date_format(date):
             abort(400, "Invalid date format.")
-        datetime = dt.datetime.strptime(yyyy_mm_dd, "%Y-%m-%d")
+        datetime = dt.datetime.strptime(date, "%Y-%m-%d")
         advice = [
             adv.to_dict()
             for adv in Advice.query.filter(
@@ -33,6 +68,4 @@ class AdviceDate(Resource):
         ]
         print(advice[0])
         
-        #TODO - create model to return advice object with correct date format
-
-        return len(advice), 200
+        return advice, 200

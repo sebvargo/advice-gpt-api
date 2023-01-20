@@ -12,7 +12,7 @@ class Config():
     SESSION_PERMANENT = False
     SESSION_TYPE = 'filesystem'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    
+    PAGINATION_ITEMS_PER_PAGE = 3
     if APP_ENVIRONMENT == "DEV":
         SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URI', '')
     elif APP_ENVIRONMENT == "PROD":

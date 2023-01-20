@@ -13,3 +13,6 @@ API.add_namespace(ns_auth)
 
 from app.api.advice import NS as ns_advice
 API.add_namespace(ns_advice)
+
+
+

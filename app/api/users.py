@@ -1,4 +1,4 @@
-from flask import g, request
+from flask import g, request, current_app
 from flask_restx import Namespace, Resource, fields
 from flask_restx.errors import abort
 from app.models import User
@@ -12,15 +12,6 @@ from app.api.auth import auth
 
 NS = Namespace("users", description="User related operations")
 
-user_model = NS.model(
-    "User",
-    {
-        "user_id": fields.Integer(description="User Id", example=1),
-        "username": fields.String(
-            required=True, description="Username", example="jane_doe"
-        ),
-    },
-)
 
 username_description = """
     - Starts with a lowercase or uppercase letter. [A-Za-z]
@@ -42,6 +33,38 @@ password_description = """
     - At least one special character [@$!%*#?&]
     - At least 8 characters in length, but no more than 20.
     """
+    
+user_model = NS.model(
+    "User",
+    {
+        "user_id": fields.Integer(description="User Id", example=1),
+        "username": fields.String(
+            required=True, description="Username", example="jane_doe"
+        ),
+    },
+)
+
+user_collection_model = NS.model(
+    "UserCollection",
+    {
+        "items": fields.List(fields.Nested(user_model, skip_none=True)),
+        "_meta": fields.Nested(
+            {
+                "page": fields.Integer(),
+                "per_page": fields.Integer(),
+                "total_pages": fields.Integer(),
+                "total_items": fields.Integer(),
+            }
+        ),
+        "_links": fields.Nested(
+            {
+                "self": fields.String(),
+                "next": fields.String(),
+                "prev": fields.String(),
+            }
+        ),
+    },
+)
 
 user_registration = NS.model(
     "UserRegistration",
@@ -101,6 +124,8 @@ user_update = NS.model(
     },
 )
 
+
+    
 parser_user_registration = create_flaskrestx_parser(user_registration)
 
 
@@ -109,15 +134,23 @@ parser_user_registration = create_flaskrestx_parser(user_registration)
 @NS.response(401, "Unauthorized.")
 class Users(Resource):
     @NS.response(200, "Succesful request.")
-    @NS.marshal_with(user_model, as_list=True, skip_none=True, code=200)
+    @NS.marshal_with(user_collection_model, skip_none=True, code=200)
+    @NS.doc(
+        params={
+            "page": "Page requested for pagination purposes.",
+            "per_page": f"Number of users per page for pagination purposes. Defaults to {current_app.config['PAGINATION_ITEMS_PER_PAGE']}",
+        }
+    )
     def get(self):
         """Get list of users."""
-
-        users = [
-            user.to_dict(include_emails=False)
-            for idx, user in enumerate(User.query.all())
-        ]
-        return users, 200
+        page = request.args.get("page", 1, type=int)
+        per_page = request.args.get(
+            "per_page", current_app.config["PAGINATION_ITEMS_PER_PAGE"], type=int
+        )
+        data = User.to_collection_dict(
+            query=User.query, page=page, per_page=per_page, endpoint="api.users_users"
+        )
+        return data, 200
 
     @NS.response(201, "New user created.")
     @NS.response(409, "Username or Email already exists")
@@ -134,13 +167,14 @@ class Users(Resource):
             username = args["username"]
             password = args["password"]
             email = args["email"]
-            user = User(username=username, email=email, password = password)
+            user = User(username=username, email=email, password=password)
             db.session.add(user)
             committed_to_db, msg = commit_to_db(db)
             if committed_to_db:
                 return user.to_dict(include_emails=False), 201
             else:
                 abort(500, f"Server Error: {msg}")
+
 
 @NS.route("/<string:username>")
 @NS.response(400, "Invalid Request.")
@@ -150,12 +184,13 @@ class SingleUsername(Resource):
     @NS.marshal_with(user_model)
     def get(self, username):
         """Get user by username"""
-        user = User.query.filter_by(username = username).first()
+        user = User.query.filter_by(username=username).first()
         if user:
             return user.to_dict(include_emails=False)
         else:
-            abort(404, 'User not found')
-            
+            abort(404, "User not found")
+
+
 @NS.route("/<int:user_id>")
 @NS.response(400, "Invalid Request.")
 @NS.response(401, "Unauthorized.")
@@ -168,7 +203,7 @@ class SingleUser(Resource):
         if user:
             return user.to_dict(include_emails=False)
         else:
-            abort(404, 'User not found')
+            abort(404, "User not found")
 
     @NS.response(200, "Success: User information updated")
     @NS.response(500, "Error: Could not commit changes to the database")

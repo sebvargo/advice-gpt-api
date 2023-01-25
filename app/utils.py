@@ -1,6 +1,71 @@
 import flask_restx
-from app.models import User
+from app.models import User, Entity, Advice
 import datetime as dt
+import requests
+
+def create_from_entity(type, **kwargs) -> object:
+    '''
+    Creates an Entity dependent object. These objects are not committed so they have to be saved manually.
+
+    :param type: type of object to create from entity
+    :type type: str
+    :kwargs: any parameters needed to create the object
+    :kwargs: dict
+    :return: Object of selected by type. Example: if "advice" the and Advice object is returned.
+    :rtype: Entity, object
+    '''
+    
+    assert isinstance(type, str)
+    type = type.lower()
+
+    entity = Entity(type = type)
+    
+    if type == 'advice':
+        object = Advice(entity=entity, **kwargs)
+    else:
+        #TODO add all possible types
+        pass
+    
+    return entity, object
+
+
+
+def get_adviceslip_by_id(adviceslip_id) -> tuple:
+
+    '''
+    Wrapper for Advice Slip's 'Advice by Id' endpoint.
+    If an advice slip is found with the corresponding {slip_id}, a slip object is returned.
+    A slip object is returned by the endpoint if an advice slip is found with the corresponding {slip_id}:
+    
+        {
+            "slip": {
+                "slip_id": "2",
+                "advice": "Smile and the world smiles with you. Frown and you're on your own."
+            }
+        }
+
+    If the slip is not found or if there is an error, a message object is returned:
+        {
+        "message": {
+            "type": "notice",
+            "text": "Advice slip not found."
+            }
+        }
+
+    :param id: The id of the advice slip.
+    :type id: int
+    :return: request outcome, content 
+    :rtype: bool, string
+    '''
+
+    url = f'https://api.adviceslip.com/advice/{adviceslip_id}'
+
+    response = requests.get(url)
+
+    if "slip" in response.json():
+        return True, response.json()['slip']['advice']
+    else:
+        return False, response.json()['text']
 
 
 def user_attr_unique_notempty_check(attributes_to_check, user_to_update=None) -> tuple:

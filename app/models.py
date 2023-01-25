@@ -313,6 +313,7 @@ class Advice(PaginatedAPIMixin, db.Model):
 
         data = {
             "entity_id": self.entity_id,
+            "persona_id": self.persona_id,
             "persona": self.persona.name,
             "content": self.content,
             "adviceslip_id": self.adviceslip_id,

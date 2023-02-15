@@ -111,14 +111,15 @@ persona_model = NS.model(
 @NS.response(400, "Invalid Request.")
 @NS.response(401, "Unauthorized.")
 class AdviceDate(Resource):
-    @NS.response(200, "Succesful request.")
+    @NS.response(200, "Successful request.")
     @NS.marshal_with(advice_collection_model, as_list=True, skip_none=True, code=200)
     @NS.doc(
         params={
             "date": "Date of interest. Required format: YYYY-MM-DD",
             "page": "Page requested for pagination purposes.",
             "per_page": f"Number of users per page for pagination purposes. Defaults to {current_app.config['PAGINATION_ITEMS_PER_PAGE']}",
-            "filter_by_persona_id": "persona_id to filter restuls by.",
+            "filter_by_persona_id": "persona_id to filter results by.",
+            "viewed_by_user_id": "user_id who has viewed the advice.",
         }
     )
     def get(self):
@@ -145,6 +146,11 @@ class AdviceDate(Resource):
         if filter_by_persona_id:
             args_filters.append(Advice.persona_id == filter_by_persona_id)
 
+        viewed_by_user_id = request.args.get("viewed_by_user_id", None, type=int)
+        if viewed_by_user_id:
+            advice_ids = [uid[0] for uid in EntityView.query.filter_by(user_id=viewed_by_user_id).with_entities(EntityView.entity_id).distinct().all()]
+            args_filters.append(Advice.entity_id.in_(advice_ids))
+        
         query = Advice.query.filter(*args_filters)
 
         page = request.args.get("page", 1, type=int)
@@ -159,7 +165,7 @@ class AdviceDate(Resource):
             endpoint="api.advice_advice_date",
             date=date,
         )
-
+        print(data)
         return data, 200
 
     @NS.response(201, "New user created.")
@@ -255,12 +261,12 @@ class AdviceDate(Resource):
         )
         response_obj = openai.Completion.create(
             model=OPENAI_MODEL,
-            prompt= content + ":::",
+            prompt=content + ":::",
             temperature=0.2,
             stop=[":::"],
             max_tokens=1024,
         )
-        
+
         content = response_obj["choices"][0]["text"]
 
         # add new advice to database
@@ -276,7 +282,9 @@ class AdviceDate(Resource):
 
         added_advice, msg = commit_to_db(db)
         if not added_advice:
-            abort(500, msg)  
+            abort(500, msg)
+        else:
+            return advice.content, 201
 
 
 @NS.route("/<int:entity_id>")
@@ -303,44 +311,37 @@ class PersonasMain(Resource):
         data = Persona.query.all()
         return data, 200
 
-@NS.route("/view")
+
+@NS.route("/views")
+@NS.response(201, "Succesful request.")
 @NS.response(400, "Invalid Request.")
 @NS.response(401, "Unauthorized.")
 @NS.response(404, "Requested object not found in database.")
 @NS.response(409, "Conflict.")
 @NS.response(500, "Internal Server Error")
 @NS.response(502, "Bad Gateway")
-class AdviceView(Resource):
-    @NS.response(201, "Marked advice as viewed.")
+class Views(Resource):
     @NS.expect(userid_entityid_model, validate=True)
     def post(self):
         user_id = request.json.get("user_id")
         entity_id = request.json.get("entity_id")
 
         if user_id and entity_id:
-            advice = Advice.query.filter_by(entity_id = entity_id).first()
-            user = User.query.filter_by(user_id = user_id).first()
+            advice = Advice.query.filter_by(entity_id=entity_id).first()
+            user = User.query.filter_by(user_id=user_id).first()
 
             if not user_id:
                 abort(404, f"User {user_id} could not be found.")
             elif not entity_id:
                 abort(404, f"Advice with entity_id {entity_id} could not be found.")
             else:
-                if EntityView.query.filter_by(entity =advice.entity, user = user):
+                if EntityView.query.filter_by(entity=advice.entity, user=user):
                     abort(409, "This view was previously documented.")
                 else:
-                    view_entity = EntityView(entity =advice.entity, user = user)
+                    view_entity = EntityView(entity=advice.entity, user=user)
                     db.session.add(view_entity)
                     added_advice, msg = commit_to_db(db)
                     if not added_advice:
-                        abort(500, msg)  
+                        abort(500, msg)
                     else:
                         return "Marked advice as viewed", 201
-
-                
-        else:
-            abort(400, f"Please provide user_id and entity_id.")
-
-
-        
-        

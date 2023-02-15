@@ -5,7 +5,7 @@ from flask_restx import Namespace, Resource, fields
 from flask_restx.errors import abort
 from app import db
 from app.api.auth import auth
-from app.models import Persona, Advice, User, Entity, EntityView, EntityLike
+from app.models import Persona, Advice, User, Entity, EntityView, EntityLike, EntityComment, EntityTag, Tag
 from app.utils import (
     validate_date_format,
     commit_to_db,
@@ -83,17 +83,65 @@ userid_entityid_model = NS.model(
     {
         "user_id": fields.Integer(
             default=DEFAULT_PERSONA_ID,
-            description="user_id that the advice was viewed by",
+            description="user_id that performed action",
             example=1,
         ),
         "entity_id": fields.Integer(
             default=DEFAULT_PERSONA_ID,
-            description="entity_id of viewed advice",
+            description="advice entity_id",
             example=9,
         ),
     },
 )
 
+advice_comment_model = NS.clone(
+    "AdviceComment", userid_entityid_model,
+    {
+        "content": fields.String(
+            required=True, 
+            description="Comment text", 
+            example="Great advice!"
+        ),
+    }
+)
+
+advice_comment_pk_model = NS.model(
+    "AdviceCommentKeys",
+    {
+        "comment_id": fields.Integer(
+            description="EntityComment's comment_id",
+            example=1,
+        ),
+        "entity_id": fields.Integer(
+            description="advice entity_id",
+            example=9,
+        ),
+    },
+)
+
+advice_tag_model = NS.clone(
+    "AdviceComment", userid_entityid_model,
+    {
+        "tag_id": fields.Integer( 
+            description="Tag id. Current tags avalailable [181-230]", 
+            example=181
+        ),
+    }
+)
+
+advice_tag_pk_model = NS.model(
+    "AdviceTagKeys",
+    {
+        "tag_id": fields.Integer(
+            description="EntityTag's tag_id. Current tags avalailable [181-230]",
+            example=181,
+        ),
+        "entity_id": fields.Integer(
+            description="Entity entity_id",
+            example=9,
+        ),
+    },
+)
 
 persona_model = NS.model(
     "Persona",
@@ -286,26 +334,42 @@ class AdviceDate(Resource):
         else:
             return advice.content, 201
 
-
 @NS.route("/<int:entity_id>")
+@NS.response(201, "Successful request.")
 @NS.response(400, "Invalid Request.")
 @NS.response(401, "Unauthorized.")
+@NS.response(404, "Requested object not found in database.")
+@NS.response(409, "Conflict.")
+@NS.response(500, "Internal Server Error")
+@NS.response(502, "Bad Gateway")
 class AdviceMain(Resource):
-    @NS.response(200, "Success: Advice deleted")
+    
+    @NS.marshal_with(advice_model, skip_none=True, code=201)
+    @NS.doc(
+        params={
+            "entity_id": "advice_id",
+        })
+    def get(self, entity_id):
+        """Get advice by id."""
+        return Advice.query.filter_by(entity_id=entity_id).first(), 201
+    
     def delete(self, entity_id):
+        """Delete advice by id."""
         Entity.query.filter_by(entity_id=entity_id).delete()
         commited_to_db, msg = commit_to_db(db)
         if commited_to_db:
             return "Advice deleted", 200
         else:
             abort(500, f"Server Error: {msg}")
+            
+            
 
 
 @NS.route("/personas")
 @NS.response(400, "Invalid Request.")
 @NS.response(401, "Unauthorized.")
 class PersonasMain(Resource):
-    @NS.response(200, "Succesful request.")
+    @NS.response(200, "Successful request.")
     @NS.marshal_with(persona_model)
     def get(self):
         data = Persona.query.all()
@@ -313,7 +377,7 @@ class PersonasMain(Resource):
 
 
 @NS.route("/views")
-@NS.response(201, "Succesful request.")
+@NS.response(201, "Successful request.")
 @NS.response(400, "Invalid Request.")
 @NS.response(401, "Unauthorized.")
 @NS.response(404, "Requested object not found in database.")
@@ -347,7 +411,7 @@ class Views(Resource):
                         return f"User <{user_id}> viewed advice <{entity_id}>", 201
 
 @NS.route("/likes")
-@NS.response(201, "Succesful request.")
+@NS.response(201, "Successful request.")
 @NS.response(400, "Invalid Request.")
 @NS.response(401, "Unauthorized.")
 @NS.response(404, "Requested object not found in database.")
@@ -379,6 +443,10 @@ class Like(Resource):
                         abort(500, msg)
                     else:
                         return f"User <{user_id}> liked advice <{entity_id}>", 201
+                    
+        else:
+            abort(400, "Invalid Request.")
+
 
     @NS.expect(userid_entityid_model, validate=True)             
     def delete(self):
@@ -388,6 +456,7 @@ class Like(Resource):
         user = User.query.filter_by(user_id=user_id).first()
         
         like = EntityLike.query.filter_by(entity=advice.entity, user=user)
+        
         if like:
             like.delete()
         else:
@@ -398,20 +467,94 @@ class Like(Resource):
         else:
             abort(500, f"Server Error: {msg}")
 
-@NS.route("/<int:entity_id>")
-@NS.response(201, "Succesful request.")
+@NS.route("/comment")
+@NS.response(201, "Successful request.")
 @NS.response(400, "Invalid Request.")
 @NS.response(401, "Unauthorized.")
 @NS.response(404, "Requested object not found in database.")
 @NS.response(409, "Conflict.")
 @NS.response(500, "Internal Server Error")
 @NS.response(502, "Bad Gateway")
-class AdviceById(Resource):
-    @NS.marshal_with(advice_model, skip_none=True, code=201)
-    @NS.doc(
-        params={
-            "entity_id": "advice_id",
-        })
-    def get(self, entity_id):
-        """Get advice by id."""
-        return Advice.query.filter_by(entity_id=entity_id).first(), 201
+class Comment(Resource):
+    @NS.expect(advice_comment_model, validate=True)
+    def post(self):
+        "Comment on advice"
+        user_id = request.json.get("user_id")
+        entity_id = request.json.get("entity_id")
+        content = request.json.get("content")
+        
+        if user_id and entity_id and content:
+            advice = Advice.query.filter_by(entity_id=entity_id).first()
+            user = User.query.filter_by(user_id=user_id).first()
+            comment = EntityComment(entity = advice.entity, user = user, content=content) 
+            db.session.add(comment)
+            commited_to_db, msg = commit_to_db(db)
+            if commited_to_db:
+                return f"User <{user_id}> commented on <{entity_id}>", 200
+            else:
+                abort(500, f"Server Error: {msg}")
+        else:
+            abort(400, "Invalid Request.")
+    @NS.expect(advice_comment_pk_model, validate=True)
+    def delete(self):
+        comment_id = request.json.get("comment_id")
+        entity_id = request.json.get("entity_id")
+        comment = EntityComment.query.filter_by(comment_id=comment_id, entity_id=entity_id)
+        if comment.first():
+            comment.delete()
+        else:
+            abort(404, f"comment <{comment_id}> on entity <{entity_id}> does not exist. ")
+        commited_to_db, msg = commit_to_db(db)
+        if commited_to_db:
+            return f"Comment <{comment_id}> deleted from entity <{entity_id}>", 200
+        else:
+            abort(500, f"Server Error: {msg}")
+            
+@NS.route("/tag")
+@NS.response(201, "Successful request.")
+@NS.response(400, "Invalid Request.")
+@NS.response(401, "Unauthorized.")
+@NS.response(404, "Requested object not found in database.")
+@NS.response(409, "Conflict.")
+@NS.response(500, "Internal Server Error")
+@NS.response(502, "Bad Gateway")
+class AdviceTag(Resource):
+    @NS.expect(advice_tag_model, validate=True)
+    def post(self):
+        "Tag  advice"
+        user_id = request.json.get("user_id")
+        entity_id = request.json.get("entity_id")
+        tag_id = request.json.get("tag_id")
+        
+        if user_id and entity_id and tag_id:
+            advice = Advice.query.filter_by(entity_id=entity_id).first()
+            user = User.query.filter_by(user_id=user_id).first()
+            tag = db.session.get(Tag, tag_id)
+
+            if tag:
+                entity_tag = EntityTag(entity = advice.entity, tag=tag, user = user) 
+                db.session.add(entity_tag)
+                commited_to_db, msg = commit_to_db(db)
+                if commited_to_db:
+                    return f"User <{user_id}> added tag <{tag_id}> to entity <{entity_id}>", 200
+                else:
+                    abort(500, f"Server Error: {msg}")
+            else:
+                abort(404, f"Tag <{tag_id}> does not exist.")
+        else:
+            abort(400, "Invalid Request.")
+            
+    @NS.expect(advice_tag_pk_model, validate=True)
+    def delete(self):
+        tag_id = request.json.get("tag_id")
+        entity_id = request.json.get("entity_id")
+        entity_tag = EntityTag.query.filter_by(tag_id=tag_id, entity_id=entity_id)
+        if entity_tag.first():
+            entity_tag.delete()
+        else:
+            abort(404, f"tag <{tag_id}> on entity <{entity_id}> does not exist. ")
+        commited_to_db, msg = commit_to_db(db)
+        if commited_to_db:
+            return f"tag <{tag_id}> deleted from entity <{entity_id}>", 200
+        else:
+            abort(500, f"Server Error: {msg}")

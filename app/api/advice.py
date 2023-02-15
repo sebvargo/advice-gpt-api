@@ -237,7 +237,7 @@ class AdviceDate(Resource):
                     .all()
                 ]
             print(advice_ids)
-        
+
             args_filters.append(Advice.entity_id.in_(advice_ids))
 
         query = Advice.query.filter(*args_filters)

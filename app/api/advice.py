@@ -5,7 +5,17 @@ from flask_restx import Namespace, Resource, fields
 from flask_restx.errors import abort
 from app import db
 from app.api.auth import auth
-from app.models import Persona, Advice, User, Entity, EntityView, EntityLike, EntityComment, EntityTag, Tag
+from app.models import (
+    Persona,
+    Advice,
+    User,
+    Entity,
+    EntityView,
+    EntityLike,
+    EntityComment,
+    EntityTag,
+    Tag,
+)
 from app.utils import (
     validate_date_format,
     commit_to_db,
@@ -95,14 +105,13 @@ userid_entityid_model = NS.model(
 )
 
 advice_comment_model = NS.clone(
-    "AdviceComment", userid_entityid_model,
+    "AdviceComment",
+    userid_entityid_model,
     {
         "content": fields.String(
-            required=True, 
-            description="Comment text", 
-            example="Great advice!"
+            required=True, description="Comment text", example="Great advice!"
         ),
-    }
+    },
 )
 
 advice_comment_pk_model = NS.model(
@@ -120,13 +129,13 @@ advice_comment_pk_model = NS.model(
 )
 
 advice_tag_model = NS.clone(
-    "AdviceComment", userid_entityid_model,
+    "AdviceComment",
+    userid_entityid_model,
     {
-        "tag_id": fields.Integer( 
-            description="Tag id. Current tags avalailable [181-230]", 
-            example=181
+        "tag_id": fields.Integer(
+            description="Tag id. Current tags avalailable [181-230]", example=181
         ),
-    }
+    },
 )
 
 advice_tag_pk_model = NS.model(
@@ -168,6 +177,7 @@ class AdviceDate(Resource):
             "per_page": f"Number of users per page for pagination purposes. Defaults to {current_app.config['PAGINATION_ITEMS_PER_PAGE']}",
             "filter_by_persona_id": "persona_id to filter results by.",
             "viewed_by_user_id": "user_id who has viewed the advice.",
+            "tagged_with_tag_id": "filter by tag_id. Add viewed_by_user_id if you want only the advice tagged by a specific user_id",
         }
     )
     def get(self):
@@ -186,7 +196,6 @@ class AdviceDate(Resource):
                     Advice.created_on < datetime + dt.timedelta(days=1),
                 ]
             )
-            print(args_filters)
         else:
             date = None
 
@@ -196,9 +205,41 @@ class AdviceDate(Resource):
 
         viewed_by_user_id = request.args.get("viewed_by_user_id", None, type=int)
         if viewed_by_user_id:
-            advice_ids = [uid[0] for uid in EntityView.query.filter_by(user_id=viewed_by_user_id).with_entities(EntityView.entity_id).distinct().all()]
+            advice_ids = [
+                uid[0]
+                for uid in EntityView.query.filter_by(user_id=viewed_by_user_id)
+                .with_entities(EntityView.entity_id)
+                .distinct()
+                .all()
+            ]
             args_filters.append(Advice.entity_id.in_(advice_ids))
+
+        tagged_with_tag_id = request.args.get("tagged_with_tag_id", None, type=int)
+        if tagged_with_tag_id:
+            if viewed_by_user_id:
+                print("Here")
+                advice_ids = [
+                    uid[0]
+                    for uid in EntityTag.query.filter_by(
+                        tag_id=tagged_with_tag_id, user_id=viewed_by_user_id
+                    )
+                    .with_entities(EntityTag.entity_id)
+                    .distinct()
+                    .all()
+                ]
+
+            else:
+                advice_ids = [
+                    uid[0]
+                    for uid in EntityTag.query.filter_by(tag_id=tagged_with_tag_id)
+                    .with_entities(EntityTag.entity_id)
+                    .distinct()
+                    .all()
+                ]
+            print(advice_ids)
         
+            args_filters.append(Advice.entity_id.in_(advice_ids))
+
         query = Advice.query.filter(*args_filters)
 
         page = request.args.get("page", 1, type=int)
@@ -213,7 +254,6 @@ class AdviceDate(Resource):
             endpoint="api.advice_advice_date",
             date=date,
         )
-        print(data)
         return data, 200
 
     @NS.response(201, "New user created.")
@@ -334,6 +374,7 @@ class AdviceDate(Resource):
         else:
             return advice.content, 201
 
+
 @NS.route("/<int:entity_id>")
 @NS.response(201, "Successful request.")
 @NS.response(400, "Invalid Request.")
@@ -343,16 +384,16 @@ class AdviceDate(Resource):
 @NS.response(500, "Internal Server Error")
 @NS.response(502, "Bad Gateway")
 class AdviceMain(Resource):
-    
     @NS.marshal_with(advice_model, skip_none=True, code=201)
     @NS.doc(
         params={
             "entity_id": "advice_id",
-        })
+        }
+    )
     def get(self, entity_id):
         """Get advice by id."""
         return Advice.query.filter_by(entity_id=entity_id).first(), 201
-    
+
     def delete(self, entity_id):
         """Delete advice by id."""
         Entity.query.filter_by(entity_id=entity_id).delete()
@@ -361,8 +402,6 @@ class AdviceMain(Resource):
             return "Advice deleted", 200
         else:
             abort(500, f"Server Error: {msg}")
-            
-            
 
 
 @NS.route("/personas")
@@ -410,6 +449,7 @@ class Views(Resource):
                     else:
                         return f"User <{user_id}> viewed advice <{entity_id}>", 201
 
+
 @NS.route("/likes")
 @NS.response(201, "Successful request.")
 @NS.response(400, "Invalid Request.")
@@ -434,29 +474,30 @@ class Like(Resource):
                 abort(404, f"Advice with entity_id {entity_id} could not be found.")
             else:
                 if EntityLike.query.filter_by(entity=advice.entity, user=user).first():
-                    abort(409, f"User <{user_id}> has already liked advice <{entity_id}>")
+                    abort(
+                        409, f"User <{user_id}> has already liked advice <{entity_id}>"
+                    )
                 else:
-                    like_entity = EntityLike(entity =advice.entity, user = user)
+                    like_entity = EntityLike(entity=advice.entity, user=user)
                     db.session.add(like_entity)
                     added_advice, msg = commit_to_db(db)
                     if not added_advice:
                         abort(500, msg)
                     else:
                         return f"User <{user_id}> liked advice <{entity_id}>", 201
-                    
+
         else:
             abort(400, "Invalid Request.")
 
-
-    @NS.expect(userid_entityid_model, validate=True)             
+    @NS.expect(userid_entityid_model, validate=True)
     def delete(self):
         user_id = request.json.get("user_id")
         entity_id = request.json.get("entity_id")
         advice = Advice.query.filter_by(entity_id=entity_id).first()
         user = User.query.filter_by(user_id=user_id).first()
-        
+
         like = EntityLike.query.filter_by(entity=advice.entity, user=user)
-        
+
         if like:
             like.delete()
         else:
@@ -466,6 +507,7 @@ class Like(Resource):
             return f"User <{user_id}> unliked advice <{entity_id}>", 200
         else:
             abort(500, f"Server Error: {msg}")
+
 
 @NS.route("/comment")
 @NS.response(201, "Successful request.")
@@ -482,11 +524,11 @@ class Comment(Resource):
         user_id = request.json.get("user_id")
         entity_id = request.json.get("entity_id")
         content = request.json.get("content")
-        
+
         if user_id and entity_id and content:
             advice = Advice.query.filter_by(entity_id=entity_id).first()
             user = User.query.filter_by(user_id=user_id).first()
-            comment = EntityComment(entity = advice.entity, user = user, content=content) 
+            comment = EntityComment(entity=advice.entity, user=user, content=content)
             db.session.add(comment)
             commited_to_db, msg = commit_to_db(db)
             if commited_to_db:
@@ -495,21 +537,27 @@ class Comment(Resource):
                 abort(500, f"Server Error: {msg}")
         else:
             abort(400, "Invalid Request.")
+
     @NS.expect(advice_comment_pk_model, validate=True)
     def delete(self):
         comment_id = request.json.get("comment_id")
         entity_id = request.json.get("entity_id")
-        comment = EntityComment.query.filter_by(comment_id=comment_id, entity_id=entity_id)
+        comment = EntityComment.query.filter_by(
+            comment_id=comment_id, entity_id=entity_id
+        )
         if comment.first():
             comment.delete()
         else:
-            abort(404, f"comment <{comment_id}> on entity <{entity_id}> does not exist. ")
+            abort(
+                404, f"comment <{comment_id}> on entity <{entity_id}> does not exist. "
+            )
         commited_to_db, msg = commit_to_db(db)
         if commited_to_db:
             return f"Comment <{comment_id}> deleted from entity <{entity_id}>", 200
         else:
             abort(500, f"Server Error: {msg}")
-            
+
+
 @NS.route("/tag")
 @NS.response(201, "Successful request.")
 @NS.response(400, "Invalid Request.")
@@ -525,25 +573,28 @@ class AdviceTag(Resource):
         user_id = request.json.get("user_id")
         entity_id = request.json.get("entity_id")
         tag_id = request.json.get("tag_id")
-        
+
         if user_id and entity_id and tag_id:
             advice = Advice.query.filter_by(entity_id=entity_id).first()
             user = User.query.filter_by(user_id=user_id).first()
             tag = db.session.get(Tag, tag_id)
 
             if tag:
-                entity_tag = EntityTag(entity = advice.entity, tag=tag, user = user) 
+                entity_tag = EntityTag(entity=advice.entity, tag=tag, user=user)
                 db.session.add(entity_tag)
                 commited_to_db, msg = commit_to_db(db)
                 if commited_to_db:
-                    return f"User <{user_id}> added tag <{tag_id}> to entity <{entity_id}>", 200
+                    return (
+                        f"User <{user_id}> added tag <{tag_id}> to entity <{entity_id}>",
+                        200,
+                    )
                 else:
                     abort(500, f"Server Error: {msg}")
             else:
                 abort(404, f"Tag <{tag_id}> does not exist.")
         else:
             abort(400, "Invalid Request.")
-            
+
     @NS.expect(advice_tag_pk_model, validate=True)
     def delete(self):
         tag_id = request.json.get("tag_id")

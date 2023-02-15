@@ -5,7 +5,7 @@ from flask_restx import Namespace, Resource, fields
 from flask_restx.errors import abort
 from app import db
 from app.api.auth import auth
-from app.models import Persona, Advice, User, Entity, EntityView
+from app.models import Persona, Advice, User, Entity, EntityView, EntityLike
 from app.utils import (
     validate_date_format,
     commit_to_db,
@@ -335,7 +335,7 @@ class Views(Resource):
             elif not entity_id:
                 abort(404, f"Advice with entity_id {entity_id} could not be found.")
             else:
-                if EntityView.query.filter_by(entity=advice.entity, user=user):
+                if EntityView.query.filter_by(entity=advice.entity, user=user).first():
                     abort(409, "This view was previously documented.")
                 else:
                     view_entity = EntityView(entity=advice.entity, user=user)
@@ -344,4 +344,74 @@ class Views(Resource):
                     if not added_advice:
                         abort(500, msg)
                     else:
-                        return "Marked advice as viewed", 201
+                        return f"User <{user_id}> viewed advice <{entity_id}>", 201
+
+@NS.route("/likes")
+@NS.response(201, "Succesful request.")
+@NS.response(400, "Invalid Request.")
+@NS.response(401, "Unauthorized.")
+@NS.response(404, "Requested object not found in database.")
+@NS.response(409, "Conflict.")
+@NS.response(500, "Internal Server Error")
+@NS.response(502, "Bad Gateway")
+class Like(Resource):
+    @NS.expect(userid_entityid_model, validate=True)
+    def post(self):
+        user_id = request.json.get("user_id")
+        entity_id = request.json.get("entity_id")
+
+        if user_id and entity_id:
+            advice = Advice.query.filter_by(entity_id=entity_id).first()
+            user = User.query.filter_by(user_id=user_id).first()
+
+            if not user_id:
+                abort(404, f"User {user_id} could not be found.")
+            elif not entity_id:
+                abort(404, f"Advice with entity_id {entity_id} could not be found.")
+            else:
+                if EntityLike.query.filter_by(entity=advice.entity, user=user).first():
+                    abort(409, f"User <{user_id}> has already liked advice <{entity_id}>")
+                else:
+                    like_entity = EntityLike(entity =advice.entity, user = user)
+                    db.session.add(like_entity)
+                    added_advice, msg = commit_to_db(db)
+                    if not added_advice:
+                        abort(500, msg)
+                    else:
+                        return f"User <{user_id}> liked advice <{entity_id}>", 201
+
+    @NS.expect(userid_entityid_model, validate=True)             
+    def delete(self):
+        user_id = request.json.get("user_id")
+        entity_id = request.json.get("entity_id")
+        advice = Advice.query.filter_by(entity_id=entity_id).first()
+        user = User.query.filter_by(user_id=user_id).first()
+        
+        like = EntityLike.query.filter_by(entity=advice.entity, user=user)
+        if like:
+            like.delete()
+        else:
+            abort(404, f"User <{user_id}> has not liked advice <{entity_id}")
+        commited_to_db, msg = commit_to_db(db)
+        if commited_to_db:
+            return f"User <{user_id}> unliked advice <{entity_id}>", 200
+        else:
+            abort(500, f"Server Error: {msg}")
+
+@NS.route("/<int:entity_id>")
+@NS.response(201, "Succesful request.")
+@NS.response(400, "Invalid Request.")
+@NS.response(401, "Unauthorized.")
+@NS.response(404, "Requested object not found in database.")
+@NS.response(409, "Conflict.")
+@NS.response(500, "Internal Server Error")
+@NS.response(502, "Bad Gateway")
+class AdviceById(Resource):
+    @NS.marshal_with(advice_model, skip_none=True, code=201)
+    @NS.doc(
+        params={
+            "entity_id": "advice_id",
+        })
+    def get(self, entity_id):
+        """Get advice by id."""
+        return Advice.query.filter_by(entity_id=entity_id).first(), 201

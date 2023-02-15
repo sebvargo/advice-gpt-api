@@ -1,0 +1,8 @@
+openapi: 3.0.0
+info:
+  title: "Advise Persona API"
+  description: **Advice Persona** gives advice as different personas through a simple API. 
+  It leverages `Advice Slip <https://api.adviceslip.com/>` and `ChatGPT <https://openai.com/blog/chatgpt/>` to provide its service. 
+  version: "1.0.0"
+servers:
+ - url: "/api"

@@ -1,0 +1,20 @@
+|   main.py
++---app
+|   |   __init__.py
+|   |   
+|   +---api
+|   |   |   routes.py
+|   |   |   __init__.py
+|   |   |   
+|   |   \---__pycache__
+|   |           routes.cpython-39.pyc
+|   |           __init__.cpython-39.pyc
+|   |           
+|   +---apidocs
+|   |   |   routes.py
+|   |   |   __init__.py
+|   |   |   
+|   +---templates
+|   |   +---api
+|   |   \---apidocs
+|   |           home.html
